@@ -24,6 +24,7 @@ class AndroidModuleConventionPlugin : Plugin<Project> {
                     val ext = project.extensions.getByType(ApplicationExtension::class.java)
                     configureApp(ext)
                 }
+
                 is LibraryPlugin -> {
                     safeApplyPlugin(project, "org.jetbrains.kotlin.android")
                     safeApplyPlugin(project, "maven-publish")
@@ -95,6 +96,7 @@ class AndroidModuleConventionPlugin : Plugin<Project> {
 
             buildFeatures {
                 viewBinding = true
+                buildConfig = true
             }
         }
     }
@@ -127,6 +129,7 @@ class AndroidModuleConventionPlugin : Plugin<Project> {
 
             buildFeatures {
                 viewBinding = true
+                buildConfig = true
             }
 
             publishing {

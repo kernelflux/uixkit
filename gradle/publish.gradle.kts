@@ -9,36 +9,43 @@ val localProps = Properties().apply {
 
 fun getProp(key: String): String? = localProps.getProperty(key)
 
-afterEvaluate {
-    extensions.findByType(PublishingExtension::class.java)?.apply {
-        publications {
-            create<MavenPublication>("release") {
-                groupId = "com.kernelflux"
-                artifactId = project.name
-                version = project.findProperty("uixkit.version")?.toString() ?: "1.0.0"
 
-                when {
-                    plugins.hasPlugin("com.android.library") -> {
-                        try {
-                            from(components["release"])
-                        } catch (e: Exception) {
-                            logger.warn("No 'release' component found in ${project.name}")
-                        }
+plugins.withId("com.android.library") {
+    afterEvaluate {
+        extensions.findByType(PublishingExtension::class.java)?.apply {
+            // 避免重复创建
+            if (publications.findByName("release") == null) {
+                publications.create("release", MavenPublication::class.java) {
+                    groupId = "com.kernelflux.uixkit"
+                    artifactId = project.name.substringAfterLast("-")
+
+                    version = if (project.hasProperty("uixkit.version")) {
+                        project.property("uixkit.version").toString()
+                    } else {
+                        rootProject.findProperty("uixkit.version")?.toString() ?: "1.0.0"
                     }
-                    plugins.hasPlugin("org.jetbrains.kotlin.jvm") -> {
-                        from(components["java"])
+
+                    val releaseComponent = components.findByName("release")
+                    if (releaseComponent != null) {
+                        from(releaseComponent)
+                        println("✅ release component found in ${project.name}")
+                    } else {
+                        logger.warn("⚠️ release component not found in ${project.name}")
                     }
                 }
             }
-        }
 
-        repositories {
-            maven {
-                name = "GitHubPackages"
-                url = uri("https://maven.pkg.github.com/kernelflux/UixKit")
-                credentials {
-                    username = getProp("gpr.user") ?: ""
-                    password = getProp("gpr.key") ?: ""
+            repositories {
+                val gprUser = getProp("gpr.user") ?: ""
+                val gprPass = getProp("gpr.key") ?: ""
+                println("gprUser:$gprUser,\ngprPass:$gprPass")
+                maven {
+                    name = "GitHubPackages"
+                    url = uri("https://maven.pkg.github.com/kernelflux/UixKit")
+                    credentials {
+                        username = gprUser
+                        password = gprPass
+                    }
                 }
             }
         }

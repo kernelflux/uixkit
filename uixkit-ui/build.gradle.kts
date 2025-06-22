@@ -9,9 +9,10 @@ android {
 }
 
 dependencies {
-
     //noinspection UseTomlInstead
     api("com.kernelflux.ktoolbox:core:0.0.4")
     api("com.kernelflux.ktoolbox:display:0.0.4")
 
 }
+
+extra["uixkit.version"] = "0.0.2"

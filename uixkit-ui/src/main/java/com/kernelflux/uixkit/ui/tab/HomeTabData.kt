@@ -1,4 +1,4 @@
-package com.kernelflux.sdk.common.ui.tab
+package com.kernelflux.uixkit.ui.tab
 
 import android.graphics.drawable.Drawable
 

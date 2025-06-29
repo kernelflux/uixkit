@@ -17,95 +17,95 @@ import java.lang.Exception
 /**
  * * Activity基础类
  **/
-open class BaseActivity : AppCompatActivity(), IBaseActivityStack {
-    private val mActivityProxyManager: BaseActivityProxyManager = BaseActivityProxyManager()
-    private var mBaseInnerProxy: IBaseActivityProxy? = null
+open class KernelActivity : AppCompatActivity(), IBaseActivityStack {
+    private val mActivityProxyManager: KernelActivityProxyManager = KernelActivityProxyManager()
+    private var mBaseInnerProxy: IKernelActivityProxy? = null
     private var mIsDestroyed = false
     private var mIgnoreInnerOnCreate = false
 
-    inner class BaseInnerProxy : IBaseActivityProxy() {
+    inner class KernelInnerProxy : IKernelActivityProxy() {
         override fun doOnActivityResult(
-            baseActivity: BaseActivity,
+            kernelActivity: KernelActivity,
             requestCode: Int,
             resultCode: Int,
             data: Intent?
         ) {
-            super@BaseActivity.onActivityResult(requestCode, resultCode, data)
+            super@KernelActivity.onActivityResult(requestCode, resultCode, data)
         }
 
-        override fun doOnAttachBaseContext(baseActivity: BaseActivity, context: Context?) {
-            super@BaseActivity.attachBaseContext(context)
+        override fun doOnAttachBaseContext(kernelActivity: KernelActivity, context: Context?) {
+            super@KernelActivity.attachBaseContext(context)
         }
 
-        override fun doOnBackPressed(baseActivity: BaseActivity) {
-            super@BaseActivity.onBackPressed()
+        override fun doOnBackPressed(kernelActivity: KernelActivity) {
+            super@KernelActivity.onBackPressed()
         }
 
         override fun doOnConfigurationChanged(
-            baseActivity: BaseActivity,
+            kernelActivity: KernelActivity,
             configuration: Configuration
         ) {
-            super@BaseActivity.onConfigurationChanged(configuration)
+            super@KernelActivity.onConfigurationChanged(configuration)
         }
 
-        override fun doOnContentChanged(baseActivity: BaseActivity) {
-            super@BaseActivity.onContentChanged()
+        override fun doOnContentChanged(kernelActivity: KernelActivity) {
+            super@KernelActivity.onContentChanged()
         }
 
-        override fun doOnCreate(baseActivity: BaseActivity, bundle: Bundle?) {
-            super@BaseActivity.onCreate(bundle)
+        override fun doOnCreate(kernelActivity: KernelActivity, bundle: Bundle?) {
+            super@KernelActivity.onCreate(bundle)
         }
 
-        override fun doOnDestroy(baseActivity: BaseActivity) {
-            super@BaseActivity.onDestroy()
+        override fun doOnDestroy(kernelActivity: KernelActivity) {
+            super@KernelActivity.onDestroy()
         }
 
-        override fun doOnFinish(baseActivity: BaseActivity) {
-            super@BaseActivity.finish()
+        override fun doOnFinish(kernelActivity: KernelActivity) {
+            super@KernelActivity.finish()
         }
 
-        override fun doOnNewIntent(baseActivity: BaseActivity, intent: Intent?) {
-            super@BaseActivity.onNewIntent(intent)
+        override fun doOnNewIntent(kernelActivity: KernelActivity, intent: Intent?) {
+            super@KernelActivity.onNewIntent(intent)
         }
 
-        override fun doOnPause(baseActivity: BaseActivity) {
-            super@BaseActivity.onPause()
+        override fun doOnPause(kernelActivity: KernelActivity) {
+            super@KernelActivity.onPause()
         }
 
         @RequiresApi(Build.VERSION_CODES.O)
         override fun doOnPictureInPictureModeChanged(
-            baseActivity: BaseActivity,
+            kernelActivity: KernelActivity,
             isInPictureInPictureMode: Boolean,
             configuration: Configuration
         ) {
-            super@BaseActivity.onPictureInPictureModeChanged(
+            super@KernelActivity.onPictureInPictureModeChanged(
                 isInPictureInPictureMode,
                 configuration
             )
         }
 
-        override fun doOnRestart(baseActivity: BaseActivity) {
-            super@BaseActivity.onRestart()
+        override fun doOnRestart(kernelActivity: KernelActivity) {
+            super@KernelActivity.onRestart()
         }
 
-        override fun doOnResume(baseActivity: BaseActivity) {
-            super@BaseActivity.onResume()
+        override fun doOnResume(kernelActivity: KernelActivity) {
+            super@KernelActivity.onResume()
         }
 
-        override fun doOnSaveInstanceState(baseActivity: BaseActivity, bundle: Bundle) {
-            super@BaseActivity.onSaveInstanceState(bundle)
+        override fun doOnSaveInstanceState(kernelActivity: KernelActivity, bundle: Bundle) {
+            super@KernelActivity.onSaveInstanceState(bundle)
         }
 
-        override fun doOnStart(baseActivity: BaseActivity) {
-            super@BaseActivity.onStart()
+        override fun doOnStart(kernelActivity: KernelActivity) {
+            super@KernelActivity.onStart()
         }
 
-        override fun doOnStop(baseActivity: BaseActivity) {
-            super@BaseActivity.onStop()
+        override fun doOnStop(kernelActivity: KernelActivity) {
+            super@KernelActivity.onStop()
         }
 
-        override fun doOnWindowFocusChanged(baseActivity: BaseActivity, hasFocus: Boolean) {
-            super@BaseActivity.onWindowFocusChanged(hasFocus)
+        override fun doOnWindowFocusChanged(kernelActivity: KernelActivity, hasFocus: Boolean) {
+            super@KernelActivity.onWindowFocusChanged(hasFocus)
         }
     }
 
@@ -133,11 +133,11 @@ open class BaseActivity : AppCompatActivity(), IBaseActivityStack {
     }
 
 
-    fun getBaseInnerProxy(): IBaseActivityProxy {
-        return mBaseInnerProxy?:BaseInnerProxy().also { mBaseInnerProxy=it }
+    fun getBaseInnerProxy(): IKernelActivityProxy {
+        return mBaseInnerProxy?:KernelInnerProxy().also { mBaseInnerProxy=it }
     }
 
-    fun getProxies(): Collection<IBaseActivityProxy> {
+    fun getProxies(): Collection<IKernelActivityProxy> {
         return this.mActivityProxyManager.getProxies()
     }
 
@@ -289,11 +289,11 @@ open class BaseActivity : AppCompatActivity(), IBaseActivityStack {
         this.mActivityProxyManager.doOnWindowFocusChanged(this, hasFocus)
     }
 
-    fun registerProxy(activityProxy: IBaseActivityProxy?) {
+    fun registerProxy(activityProxy: IKernelActivityProxy?) {
         this.mActivityProxyManager.registerLocalProxy(activityProxy)
     }
 
-    fun unregisterProxy(activityProxy: IBaseActivityProxy?) {
+    fun unregisterProxy(activityProxy: IKernelActivityProxy?) {
         this.mActivityProxyManager.unregisterLocalProxy(activityProxy)
     }
 
@@ -302,6 +302,6 @@ open class BaseActivity : AppCompatActivity(), IBaseActivityStack {
     }
 
     companion object {
-        val TAG: String = BaseActivity::class.java.simpleName
+        val TAG: String = KernelActivity::class.java.simpleName
     }
 }

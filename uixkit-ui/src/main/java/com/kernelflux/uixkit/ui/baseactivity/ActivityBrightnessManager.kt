@@ -27,7 +27,7 @@ object ActivityBrightnessManager {
             return brightness
         }
         val topActivity: Activity =
-            BaseActivityStackManager.getTopActivity() ?: return getSystemBrightness()
+            KernelActivityStackManager.getTopActivity() ?: return getSystemBrightness()
         val attributes = topActivity.window.attributes
         return if (!needSystemBrightness(attributes)) {
             (attributes.screenBrightness * MAX_BRIGHTNESS).toInt()
@@ -65,7 +65,7 @@ object ActivityBrightnessManager {
 
     @JvmStatic
     fun restoreAppToSystemBrightness() {
-        val it: Iterator<Activity> = BaseActivityStackManager.getActivityStack().iterator()
+        val it: Iterator<Activity> = KernelActivityStackManager.getActivityStack().iterator()
         while (it.hasNext()) {
             val next = it.next()
             if (!next.isFinishing) {
@@ -102,7 +102,7 @@ object ActivityBrightnessManager {
     @JvmStatic
     fun setActivityBrightness(@IntRange(from = 0, to = 255) brightness: Int) {
         synchronized(ActivityBrightnessManager::class.java) {
-            val topActivity: Activity? = BaseActivityStackManager.getTopActivity()
+            val topActivity: Activity? = KernelActivityStackManager.getTopActivity()
             if (topActivity != null) {
                 sScreenBrightness = brightness
                 updateActivityBrightness(topActivity)

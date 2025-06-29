@@ -1,13 +1,13 @@
 package com.kernelflux.uixkit.ui.baseactivity.impl
 
 import android.util.Log
-import com.kernelflux.uixkit.ui.baseactivity.IBaseActivityLogger
+import com.kernelflux.uixkit.ui.baseactivity.IKernelActivityLogger
 
 /**
  * * 日志输出类
  **/
 object Logger {
-    private var sLogger: IBaseActivityLogger = getDefaultLogger()
+    private var sLogger: IKernelActivityLogger = getDefaultLogger()
 
     @JvmStatic
     fun d(tag: String, content: String) {
@@ -20,7 +20,7 @@ object Logger {
     }
 
     @JvmStatic
-    private fun getDefaultLogger(): IBaseActivityLogger {
+    private fun getDefaultLogger(): IKernelActivityLogger {
         return DefaultLogger()
     }
 
@@ -30,7 +30,7 @@ object Logger {
     }
 
     @JvmStatic
-    fun setLogger(logger: IBaseActivityLogger?) {
+    fun setLogger(logger: IKernelActivityLogger?) {
         if (logger != null) {
             sLogger = logger
         }
@@ -42,7 +42,7 @@ object Logger {
     }
 
 
-    class DefaultLogger : IBaseActivityLogger {
+    class DefaultLogger : IKernelActivityLogger {
         override fun d(tag: String, msg: String) {
             Log.d(tag, msg)
         }

@@ -10,7 +10,7 @@ import java.util.*
 /**
  * * Activity栈管理外部类
  **/
-object BaseActivityStackManager {
+object KernelActivityStackManager {
 
     @JvmStatic
     fun finishActivity(activity: Activity) {
@@ -75,7 +75,7 @@ object BaseActivityStackManager {
     @Synchronized
     @JvmStatic
     fun init(application: Application) {
-        synchronized(BaseActivityStackManager::class.java) {
+        synchronized(KernelActivityStackManager::class.java) {
             ActivityStackImpl.INSTANCE.init(
                 application
             )
@@ -117,7 +117,7 @@ object BaseActivityStackManager {
     @Synchronized
     @JvmStatic
     fun unInit() {
-        synchronized(BaseActivityStackManager::class.java) { ActivityStackImpl.INSTANCE.unInit() }
+        synchronized(KernelActivityStackManager::class.java) { ActivityStackImpl.INSTANCE.unInit() }
     }
 
     @JvmStatic

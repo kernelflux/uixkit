@@ -19,7 +19,6 @@ import com.kernelflux.ktoolbox.core.HandlerUtils
 import com.kernelflux.ktoolbox.display.WindowInsetsProvider
 import com.kernelflux.ktoolbox.display.dimenPx
 import com.kernelflux.ktoolbox.display.dp
-import com.kernelflux.sdk.common.ui.tab.HomeTabDataWrapper
 import com.kernelflux.uixkit.ui.R
 import java.lang.ref.WeakReference
 import java.util.regex.Pattern

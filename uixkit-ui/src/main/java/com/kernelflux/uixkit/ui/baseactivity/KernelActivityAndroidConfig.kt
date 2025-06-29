@@ -7,11 +7,11 @@ import com.kernelflux.uixkit.ui.baseactivity.impl.Logger
 /**
  * * Activity基础配置：页面栈管理、页面亮度、App前后状态监听
  **/
-object BaseActivityAndroidConfig {
+object KernelActivityAndroidConfig {
 
     @JvmStatic
-    private fun createLogger(): IBaseActivityLogger {
-        return object : IBaseActivityLogger {
+    private fun createLogger(): IKernelActivityLogger {
+        return object : IKernelActivityLogger {
             override fun d(tag: String, msg: String) {
                 Log.d(tag, msg)
             }
@@ -38,7 +38,7 @@ object BaseActivityAndroidConfig {
         }
         val sApp = baseActivityConfig.app
         if (sApp != null) {
-            BaseActivityStackManager.init(sApp)
+            KernelActivityStackManager.init(sApp)
             ActivityBrightnessManager.init(sApp)
             AppStatusChangedObservable.init()
         }

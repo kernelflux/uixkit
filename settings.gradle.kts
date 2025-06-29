@@ -45,7 +45,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "UixKit"
+rootProject.name = "uixkit"
 include(":sample")
 include(":uixkit-core")
 include(":uixkit-ui")

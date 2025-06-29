@@ -1,10 +1,9 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     id("com.kernelflux.android.module")
 }
 
-android {
+android{
     namespace = "com.kernelflux.uixkitsample"
 }
 

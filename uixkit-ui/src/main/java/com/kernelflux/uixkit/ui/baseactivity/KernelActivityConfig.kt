@@ -7,18 +7,18 @@ import android.app.Application
  **/
 class BaseActivityConfig private constructor(
     val app: Application?,
-    val logger: IBaseActivityLogger?
+    val logger: IKernelActivityLogger?
 ) {
     data class Builder(
         private var mApp: Application? = null,
-        private var mLogger: IBaseActivityLogger? = null
+        private var mLogger: IKernelActivityLogger? = null
     ) {
 
         fun setApplication(application: Application) = apply {
             mApp = application
         }
 
-        fun setLogger(loggerITG: IBaseActivityLogger) = apply {
+        fun setLogger(loggerITG: IKernelActivityLogger) = apply {
             mLogger = loggerITG
         }
 

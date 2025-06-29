@@ -1,6 +1,6 @@
 package com.kernelflux.uixkit.core
 
-import androidx.appcompat.app.AppCompatActivity
+import com.kernelflux.uixkit.ui.baseactivity.KernelActivity
 
-class BaseActivity : AppCompatActivity() {
+class BaseActivity : KernelActivity() {
 }

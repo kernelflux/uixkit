@@ -1,7 +1,7 @@
-package com.kernelflux.uixkit.ui.baseactivity
+package com.kernelflux.uixkit.core.baseactivity
 
 /**
- * * Activity基类相关日志打印接口
+ * * Activity Base Logger
  **/
 interface IKernelActivityLogger {
     fun d(tag: String, msg: String)

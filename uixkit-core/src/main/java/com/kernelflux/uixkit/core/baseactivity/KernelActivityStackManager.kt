@@ -1,15 +1,12 @@
-package com.kernelflux.uixkit.ui.baseactivity
+package com.kernelflux.uixkit.core.baseactivity
 
 import android.app.Activity
 import android.app.Application
 import androidx.annotation.AnimRes
 import androidx.annotation.IntRange
-import com.kernelflux.uixkit.ui.baseactivity.impl.ActivityStackImpl
+import com.kernelflux.uixkit.core.baseactivity.impl.ActivityStackImpl
 import java.util.*
 
-/**
- * * Activity栈管理外部类
- **/
 object KernelActivityStackManager {
 
     @JvmStatic

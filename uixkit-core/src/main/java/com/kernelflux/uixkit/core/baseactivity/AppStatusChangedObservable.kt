@@ -1,11 +1,9 @@
-package com.kernelflux.uixkit.ui.baseactivity
+package com.kernelflux.uixkit.core.baseactivity
 
 import com.kernelflux.ktoolbox.core.WeakListenerMgr
-import com.kernelflux.uixkit.ui.baseactivity.impl.ActivityStackImpl
-import com.kernelflux.uixkit.ui.baseactivity.impl.Logger
-/**
- * * App生命周期观察对象
- **/
+import com.kernelflux.uixkit.core.baseactivity.impl.ActivityStackImpl
+import com.kernelflux.uixkit.core.baseactivity.impl.Logger
+
 internal object AppStatusChangedObservable {
     private val LISTENER_MGR: WeakListenerMgr<IOnAppStatusChangedListener> = WeakListenerMgr()
     private val TAG = AppStatusChangedObservable::class.java.simpleName
@@ -16,7 +14,7 @@ internal object AppStatusChangedObservable {
 
     @JvmStatic
     fun init() {
-        Logger.d(TAG, "绑定生命周期监听")
+        Logger.d(TAG, "bind lifecycle to detach")
         ActivityStackImpl.INSTANCE.setAppStatusChangedListener(object :
             IOnAppStatusChangedListener {
             override fun onBackground() {

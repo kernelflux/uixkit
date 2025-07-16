@@ -1,10 +1,7 @@
-package com.kernelflux.uixkit.ui.baseactivity
+package com.kernelflux.uixkit.core.baseactivity
 
 import android.app.Application
 
-/**
- * * Activity基础配置类
- **/
 class BaseActivityConfig private constructor(
     val app: Application?,
     val logger: IKernelActivityLogger?

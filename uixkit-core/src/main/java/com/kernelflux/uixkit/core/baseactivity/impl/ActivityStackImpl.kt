@@ -1,4 +1,4 @@
-package com.kernelflux.uixkit.ui.baseactivity.impl
+package com.kernelflux.uixkit.core.baseactivity.impl
 
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -9,17 +9,20 @@ import android.util.Log
 import androidx.annotation.AnimRes
 import androidx.annotation.IntRange
 import com.kernelflux.ktoolbox.core.WeakListenerMgr
-import com.kernelflux.uixkit.ui.baseactivity.IBaseActivityStack
-import com.kernelflux.uixkit.ui.baseactivity.IBaseActivityStackChangeListener
-import com.kernelflux.uixkit.ui.baseactivity.IOnAppStatusChangedListener
+import com.kernelflux.uixkit.core.baseactivity.IBaseActivityStack
+import com.kernelflux.uixkit.core.baseactivity.IBaseActivityStackChangeListener
+import com.kernelflux.uixkit.core.baseactivity.IOnAppStatusChangedListener
 import java.lang.StringBuilder
 import java.util.*
+import java.lang.ref.WeakReference
+import java.util.LinkedList
 
 /**
  * * Activity页面栈实现
  **/
 internal class ActivityStackImpl : Application.ActivityLifecycleCallbacks {
-    private val mActivityStack: LinkedList<Activity> = LinkedList()
+    private val weakStack = LinkedList<WeakReference<Activity>>()
+    private val strongStack = LinkedList<Activity>()
     private val mStackListenerMgr: WeakListenerMgr<IBaseActivityStackChangeListener> =
         WeakListenerMgr()
     private var mConfigCount = 0
@@ -350,13 +353,16 @@ internal class ActivityStackImpl : Application.ActivityLifecycleCallbacks {
         return getActivityStack().isEmpty()
     }
 
-    @Synchronized
+    // 合并强/弱引用，返回有效Activity列表，顺序：强引用在前，弱引用后，去重
     fun getActivityStack(): LinkedList<Activity> {
-        return LinkedList(mActivityStack)
+        val result = LinkedHashSet<Activity>()
+        result.addAll(strongStack)
+        weakStack.forEach { it.get()?.let { act -> result.add(act) } }
+        return LinkedList(result)
     }
 
     fun size(): Int {
-        return mActivityStack.size
+        return getActivityStack().size
     }
 
     @Synchronized
@@ -365,10 +371,12 @@ internal class ActivityStackImpl : Application.ActivityLifecycleCallbacks {
             application == null -> {
                 Log.e(TAG, "app is null", null)
             }
+
             sApp == null -> {
                 sApp = application
                 initReally(sApp)
             }
+
             sApp?.equals(application) != true -> {
                 unInit()
                 sApp = application
@@ -379,7 +387,7 @@ internal class ActivityStackImpl : Application.ActivityLifecycleCallbacks {
 
     @Synchronized
     fun unInit() {
-        mActivityStack.clear()
+        getActivityStack().clear()
         if (sApp != null) {
             sApp?.unregisterActivityLifecycleCallbacks(this)
             sApp = null
@@ -388,12 +396,12 @@ internal class ActivityStackImpl : Application.ActivityLifecycleCallbacks {
     }
 
     private fun initReally(application: Application?) {
-        mActivityStack.clear()
+        getActivityStack().clear()
         if (application != null) {
             application.registerActivityLifecycleCallbacks(this)
             for (activity in ActivityUtils.getActivitiesByReflect()) {
                 if ((activity !is IBaseActivityStack || (activity as IBaseActivityStack).isCanPutIntoStack()) && !activity.isFinishing) {
-                    mActivityStack.addLast(activity)
+                    strongStack.addLast(activity)
                 }
             }
         }
@@ -523,26 +531,33 @@ internal class ActivityStackImpl : Application.ActivityLifecycleCallbacks {
         }
     }
 
-    @Synchronized
     fun putTopActivity(activity: Activity) {
-        if (activity !is IBaseActivityStack || (activity as? IBaseActivityStack)?.isCanPutIntoStack() == true) {
-            if (!mActivityStack.contains(activity)) {
-                mActivityStack.addFirst(activity)
-                Logger.d(TAG, "putTopActivity $activity")
-                notifyAdded(activity)
-            } else if (mActivityStack.first != activity) {
-                mActivityStack.remove(activity)
-                mActivityStack.addFirst(activity)
-                Logger.d(TAG, "putTopActivity $activity")
-                notifyAdded(activity)
-            }
+        // 判断是否需要强引用
+        val needStrong =
+            (activity is IBaseActivityStack) && (activity as IBaseActivityStack).isStrongReference()
+        if (needStrong && !strongStack.contains(activity)) {
+            strongStack.add(activity)
         }
+        if (strongStack.contains(activity)) {
+            strongStack.remove(activity)
+            strongStack.addLast(activity)
+        }
+        // 弱引用栈处理
+        val toRemove = weakStack.find { it.get() == activity }
+        if (toRemove != null) weakStack.remove(toRemove)
+        weakStack.add(WeakReference(activity))
+        cleanUp()
+        notifyAdded(activity)
     }
 
-    @Synchronized
     fun removeActivity(activity: Activity) {
-        mActivityStack.remove(activity)
+        strongStack.remove(activity)
+        weakStack.removeAll { it.get() == null || it.get() == activity }
         notifyRemoved(activity)
+    }
+
+    private fun cleanUp() {
+        weakStack.removeAll { it.get() == null }
     }
 
     private fun notifyAdded(activity: Activity) {
@@ -622,7 +637,7 @@ internal class ActivityStackImpl : Application.ActivityLifecycleCallbacks {
     }
 
     companion object {
-        val TAG: String = ActivityStackImpl::class.java.simpleName
+        const val TAG: String = "ActivityStackImpl_tag"
         val INSTANCE = ActivityStackImpl()
         var sApp: Application? = null
     }

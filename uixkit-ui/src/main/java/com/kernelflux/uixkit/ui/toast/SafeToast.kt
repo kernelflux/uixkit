@@ -12,7 +12,7 @@ import java.lang.reflect.Modifier
 import java.util.*
 
 /**
- * * fix OS7.1.x上Toast错误( android.view.WindowManager$BadTokenException)
+ * * fix Toast error on OS7.1.x( android.view.WindowManager$BadTokenException)
  **/
 object SafeToast {
     private val TAG = SafeToast::class.java.simpleName
@@ -22,7 +22,9 @@ object SafeToast {
         var isHook = false
         if (Build.VERSION.SDK_INT == Build.VERSION_CODES.N_MR1) {
             val deviceBrand: String = Build.BRAND
-            if (TextUtils.isEmpty(deviceBrand) || !deviceBrand.lowercase(Locale.ROOT).contains("nubia")) {
+            if (TextUtils.isEmpty(deviceBrand) || !deviceBrand.lowercase(Locale.ROOT)
+                    .contains("nubia")
+            ) {
                 SafeToastContext.hookViewContext(view, SafeToastContext(view.context, listener))
                 return
             }
@@ -56,7 +58,7 @@ object SafeToast {
     }
 
     private fun hookFiled(
-       obj: Any,
+        obj: Any,
         fieldName: String,
         fieldObjProxy: Any
     ): Boolean {

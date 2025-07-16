@@ -1,11 +1,9 @@
-package com.kernelflux.uixkit.ui.baseactivity.impl
+package com.kernelflux.uixkit.core.baseactivity.impl
 
 import android.util.Log
-import com.kernelflux.uixkit.ui.baseactivity.IKernelActivityLogger
+import com.kernelflux.uixkit.core.baseactivity.IKernelActivityLogger
 
-/**
- * * 日志输出类
- **/
+
 object Logger {
     private var sLogger: IKernelActivityLogger = getDefaultLogger()
 

@@ -4,8 +4,6 @@ import android.view.View
 
 
 class NavDefaultFocusItemOffsetListener(gravity: Int) : RecyclerNav.NavFocusItemOffsetListener {
-
-
     private var mGravity = VERTICAL
 
     init {

@@ -1,28 +1,23 @@
-package com.kernelflux.uixkit.ui.baseactivity
+package com.kernelflux.uixkit.core.baseactivity
 
 import android.app.Activity
 
 /**
- * * Activity页面栈业务接口： 是否入栈、检测App前后台状态
+ * * Activity Page Stack
  **/
 interface IBaseActivityStack {
     fun isCanPutIntoStack(): Boolean
 
     fun isCheckAppStatus(): Boolean
+    fun isStrongReference(): Boolean = false
 }
 
-/**
- * * Activity页面入栈/出栈回调接口
- **/
 interface IBaseActivityStackChangeListener {
     fun onActivityAdded(activity: Activity)
 
     fun onActivityRemoved(activity: Activity)
 }
 
-/**
- * * App前后台状态监听接口
- **/
 interface IOnAppStatusChangedListener {
     fun onBackground()
 

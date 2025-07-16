@@ -1,4 +1,4 @@
-package com.kernelflux.uixkit.ui.baseactivity
+package com.kernelflux.uixkit.core.baseactivity
 
 import android.app.Activity
 import android.content.Context
@@ -10,10 +10,10 @@ import androidx.annotation.IntRange
 import java.lang.Exception
 import java.lang.RuntimeException
 
-/**
- * * Activity亮度管理类
- **/
-object ActivityBrightnessManager {
+
+object
+
+ActivityBrightnessManager {
     private const val MAX_BRIGHTNESS = 255
     private const val SYSTEM_DEF_BRIGHTNESS = 125
     private var sAppContext: Context? = null

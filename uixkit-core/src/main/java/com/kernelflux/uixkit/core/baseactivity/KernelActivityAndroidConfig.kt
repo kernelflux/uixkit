@@ -1,12 +1,9 @@
-package com.kernelflux.uixkit.ui.baseactivity
+package com.kernelflux.uixkit.core.baseactivity
 
 import android.app.Application
 import android.util.Log
-import com.kernelflux.uixkit.ui.baseactivity.impl.Logger
+import com.kernelflux.uixkit.core.baseactivity.impl.Logger
 
-/**
- * * Activity基础配置：页面栈管理、页面亮度、App前后状态监听
- **/
 object KernelActivityAndroidConfig {
 
     @JvmStatic

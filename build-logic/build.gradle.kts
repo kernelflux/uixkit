@@ -14,7 +14,7 @@ repositories {
 
 dependencies {
     //noinspection UseTomlInstead
-    implementation("com.android.tools.build:gradle:8.11.0")
+    implementation("com.android.tools.build:gradle:8.11.1")
     implementation(kotlin("gradle-plugin"))
 }
 

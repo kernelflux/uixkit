@@ -1,4 +1,4 @@
-package com.kernelflux.uixkit.ui.baseactivity.impl
+package com.kernelflux.uixkit.core.baseactivity.impl
 
 import android.annotation.SuppressLint
 import android.app.Activity

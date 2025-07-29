@@ -131,3 +131,25 @@ fun <T : Any> SmartAdapter<T>.withDelegates(
     return this
 }
 
+/**
+ * DSL-style extension function to register an ItemDelegate with automatic ViewBinding handling.
+ * This provides a more concise API for registering delegates.
+ *
+ * @param T The type of the data model.
+ * @param VB The type of the ViewBinding.
+ * @param isForViewType Lambda to determine if this delegate handles the item.
+ * @param onBind Lambda to bind data to the view.
+ * @return The SmartAdapter instance for method chaining.
+ */
+inline fun <T : Any, reified VB : ViewBinding> SmartAdapter<T>.withDelegate(
+    noinline isForViewType: (item: T, position: Int) -> Boolean,
+    noinline onBind: (binding: VB, item: T, position: Int, payloads: List<Any>) -> Unit
+): SmartAdapter<T> {
+    val delegate = object : AutoBindingDelegate<T, VB>() {
+        override fun isForViewType(item: T, position: Int): Boolean = isForViewType(item, position)
+        override fun onBindViewHolder(binding: VB, item: T, position: Int, payloads: List<Any>) = onBind(binding, item, position, payloads)
+    }
+    this.registerDelegate(delegate)
+    return this
+}
+

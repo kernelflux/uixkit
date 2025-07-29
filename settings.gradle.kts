@@ -47,6 +47,10 @@ dependencyResolutionManagement {
 
 rootProject.name = "uixkit"
 include(":sample")
+
+include(":uixkit-debugtool")
+
+
 include(":uixkit-core")
 include(":uixkit-ui")
 include(":uixkit-adapter")

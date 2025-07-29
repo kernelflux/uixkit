@@ -5,11 +5,10 @@ import android.content.Context
 import android.util.AttributeSet
 import android.util.Log
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
-import androidx.core.view.NestedScrollingParent2
-import androidx.core.view.NestedScrollingParentHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlin.math.abs
@@ -19,47 +18,59 @@ import kotlin.math.min
 
 /**
  * [SmartRefreshContainer] is a robust container for pull-to-refresh and load-more functionality.
- * It leverages the [NestedScrollingParent2] mechanism to implement refresh and load actions, and supports customizable Header and Footer views.
+ * It uses a simplified gesture handling approach to avoid nested scrolling conflicts.
  *
- * Core Improvements:
- * - More precise management of refresh/load states.
- * - Enhanced interception and handling of nested scroll events.
- * - Simple rebound animations.
- * - Coordinated animations and state updates between the Header/Footer and the container.
+ * Core Features:
+ * - Simple touch event handling to avoid nested scrolling conflicts
+ * - Smooth animations with proper state management
+ * - Customizable Header and Footer views
+ * - Automatic refresh and load more functionality
  */
 class SmartRefreshContainer @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0,
-) : FrameLayout(context, attrs, defStyleAttr), NestedScrollingParent2 {
+) : FrameLayout(context, attrs, defStyleAttr) {
 
-    private val TAG = "SmartRefreshContainer"
+    companion object {
+        const val TAG = "SmartRefreshContainer"
+    }
 
     private var recyclerView: RecyclerView? = null
-    private var refreshHeader: RefreshHeader? = null
-    private var loadMoreFooter: LoadMoreFooter? = null
+    var refreshHeader: RefreshHeader? = null
+        private set
+    var loadMoreFooter: LoadMoreFooter? = null
+        private set
 
     @RefreshState.State
-    private var currentState: Int = RefreshState.STATE_IDLE
-    private var lastState: Int = RefreshState.STATE_IDLE
+    var currentState: Int = RefreshState.STATE_IDLE
+        private set
+    private var lastState = RefreshState.STATE_IDLE
 
     private var onRefreshListener: (() -> Unit)? = null
     private var onLoadMoreListener: (() -> Unit)? = null
-
-    private val nestedScrollingParentHelper = NestedScrollingParentHelper(this)
 
     // For rebound animation
     private var scrollAnimator: ValueAnimator? = null
 
     var refreshTriggerOffset = dp2px(80)
     var loadMoreTriggerOffset = dp2px(80)
-    var maxPullDownOffset = dp2px(160)
-    var maxPullUpOffset = dp2px(160)
+    var maxPullDownOffset = dp2px(150)
+    var maxPullUpOffset = dp2px(150)
+    var dampingFactor = 0.15f // 降低阻尼系数，让阻尼更明显
+        private set
 
-    private var currentOffset = 0
+    // 动画时间配置
+    var animationDuration = 300 // 默认动画时间，可配置
+    var refreshAnimationDuration = 250 // 刷新动画时间，可配置
+    var loadMoreAnimationDuration = 250 // 加载更多动画时间，可配置
+        private set
 
-    init {
-        // addRefreshHeader(DefaultRefreshHeader(context)) // 示例
-        // addLoadMoreFooter(DefaultLoadMoreFooter(context)) // 示例
-    }
+    var currentOffset = 0
+        private set
+    private var lastTouchY = 0f
+    private var isDragging = false
+    private var initialTouchY = 0f
+    private var touchSlop = 10f // 触摸滑动阈值
+
 
     override fun onFinishInflate() {
         super.onFinishInflate()
@@ -78,7 +89,7 @@ class SmartRefreshContainer @JvmOverloads constructor(
     }
 
 
-    fun setRecyclerView(rv: RecyclerView) {
+    private fun setRecyclerView(rv: RecyclerView) {
         if (recyclerView != null && recyclerView != rv) {
             removeView(recyclerView)
         }
@@ -91,14 +102,18 @@ class SmartRefreshContainer @JvmOverloads constructor(
         lp.height = LayoutParams.MATCH_PARENT
         rv.layoutParams = lp
 
+        rv.itemAnimator = null
 
         if (rv.parent != this) {
             addView(rv, 0)
         }
 
-        if (rv.layoutManager !is LinearLayoutManager && rv.layoutManager !is RecyclerView.LayoutManager) {
+        if (rv.layoutManager !is LinearLayoutManager &&
+            rv.layoutManager !is RecyclerView.LayoutManager
+        ) {
             logDebug("RecyclerView's LayoutManager is not LinearLayoutManager. Pull/LoadMore might not behave as expected with custom LayoutManagers.")
         }
+
     }
 
 
@@ -108,7 +123,10 @@ class SmartRefreshContainer @JvmOverloads constructor(
         val lp = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
         lp.gravity = Gravity.TOP
         addView(header.getView(), lp)
-        header.getView().translationY = -header.getView().measuredHeight.toFloat()
+        // 修复初始位置：Header 应该在容器外部
+        header.getView().post {
+            header.getView().translationY = -header.getView().height.toFloat()
+        }
     }
 
 
@@ -118,7 +136,10 @@ class SmartRefreshContainer @JvmOverloads constructor(
         val lp = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
         lp.gravity = Gravity.BOTTOM
         addView(footer.getView(), lp)
-        footer.getView().translationY = footer.getView().measuredHeight.toFloat()
+        // 修复初始位置：Footer 应该在容器外部
+        footer.getView().post {
+            footer.getView().translationY = footer.getView().height.toFloat()
+        }
     }
 
 
@@ -131,6 +152,67 @@ class SmartRefreshContainer @JvmOverloads constructor(
         onLoadMoreListener = listener
     }
 
+    /**
+     * Sets the adapter for the internal RecyclerView.
+     * This is a convenient method to avoid manually getting the RecyclerView.
+     *
+     * @param adapter The adapter to set for the RecyclerView.
+     */
+    fun setAdapter(adapter: RecyclerView.Adapter<*>) {
+        recyclerView?.adapter = adapter
+    }
+
+    /**
+     * Gets the internal RecyclerView for advanced customization.
+     * Use this method only when you need direct access to the RecyclerView.
+     *
+     * @return The internal RecyclerView instance.
+     */
+    fun getRecyclerView(): RecyclerView? {
+        return recyclerView
+    }
+
+    /**
+     * Sets the LayoutManager for the internal RecyclerView.
+     *
+     * @param layoutManager The LayoutManager to set.
+     */
+    fun setLayoutManager(layoutManager: RecyclerView.LayoutManager) {
+        recyclerView?.layoutManager = layoutManager
+    }
+
+    /**
+     * Adds an ItemDecoration to the internal RecyclerView.
+     *
+     * @param decoration The ItemDecoration to add.
+     */
+    fun addItemDecoration(decoration: RecyclerView.ItemDecoration) {
+        recyclerView?.addItemDecoration(decoration)
+    }
+
+    /**
+     * 自动添加默认的刷新和加载更多视图
+     */
+    fun setupDefaultHeaders() {
+        if (refreshHeader == null) {
+            addRefreshHeader(DefaultRefreshHeader(context))
+        }
+        if (loadMoreFooter == null) {
+            addLoadMoreFooter(DefaultLoadMoreFooter(context))
+        }
+    }
+
+    /**
+     * 自动刷新（程序触发下拉刷新）
+     */
+    fun autoRefresh() {
+        if (currentState == RefreshState.STATE_IDLE) {
+            setState(RefreshState.STATE_REFRESHING)
+            refreshHeader?.onRefreshing()
+            animateToOffset(refreshTriggerOffset)
+            onRefreshListener?.invoke()
+        }
+    }
 
     fun finishRefresh() {
         if (currentState == RefreshState.STATE_REFRESHING) {
@@ -151,31 +233,54 @@ class SmartRefreshContainer @JvmOverloads constructor(
 
     private fun setState(@RefreshState.State state: Int) {
         if (currentState == state) return
+
         lastState = currentState
         currentState = state
         logDebug("State changed from $lastState to $currentState")
 
         when (currentState) {
-            RefreshState.STATE_PULL_DOWN_TO_REFRESH -> refreshHeader?.onPulling(
-                abs(currentOffset).toFloat() / refreshTriggerOffset,
-                currentOffset,
-                refreshTriggerOffset,
-                currentState
-            )
+            RefreshState.STATE_PULL_DOWN_TO_REFRESH -> {
+                refreshHeader?.onPulling(
+                    abs(currentOffset).toFloat() / refreshTriggerOffset,
+                    currentOffset,
+                    refreshTriggerOffset,
+                    currentState
+                )
+            }
 
-            RefreshState.STATE_RELEASE_TO_REFRESH -> refreshHeader?.onReleaseToRefresh()
-            RefreshState.STATE_REFRESHING -> refreshHeader?.onRefreshing()
-            RefreshState.STATE_PULL_UP_TO_LOAD -> loadMoreFooter?.onPulling(
-                abs(currentOffset).toFloat() / loadMoreTriggerOffset,
-                currentOffset,
-                loadMoreTriggerOffset,
-                currentState
-            )
+            RefreshState.STATE_RELEASE_TO_REFRESH -> {
+                refreshHeader?.onReleaseToRefresh()
+            }
 
-            RefreshState.STATE_RELEASE_TO_LOAD -> loadMoreFooter?.onReleaseToLoad()
-            RefreshState.STATE_LOADING -> loadMoreFooter?.onLoading()
-            RefreshState.STATE_REFRESH_FINISH -> refreshHeader?.onFinish()
-            RefreshState.STATE_LOAD_FINISH -> loadMoreFooter?.onFinish()
+            RefreshState.STATE_REFRESHING -> {
+                refreshHeader?.onRefreshing()
+            }
+
+            RefreshState.STATE_PULL_UP_TO_LOAD -> {
+                loadMoreFooter?.onPulling(
+                    abs(currentOffset).toFloat() / loadMoreTriggerOffset,
+                    currentOffset,
+                    loadMoreTriggerOffset,
+                    currentState
+                )
+            }
+
+            RefreshState.STATE_RELEASE_TO_LOAD -> {
+                loadMoreFooter?.onReleaseToLoad()
+            }
+
+            RefreshState.STATE_LOADING -> {
+                loadMoreFooter?.onLoading()
+            }
+
+            RefreshState.STATE_REFRESH_FINISH -> {
+                refreshHeader?.onFinish()
+            }
+
+            RefreshState.STATE_LOAD_FINISH -> {
+                loadMoreFooter?.onFinish()
+            }
+
             RefreshState.STATE_IDLE -> {
                 refreshHeader?.onReset()
                 loadMoreFooter?.onReset()
@@ -186,9 +291,17 @@ class SmartRefreshContainer @JvmOverloads constructor(
 
     private fun animateToOffset(targetOffset: Int) {
         scrollAnimator?.cancel()
+
+        // 根据目标偏移量选择不同的动画时间
+        val duration = when {
+            targetOffset == 0 -> animationDuration // 回弹到0
+            targetOffset > 0 -> refreshAnimationDuration // 刷新动画
+            else -> loadMoreAnimationDuration // 加载更多动画
+        }
+
         scrollAnimator = ValueAnimator.ofInt(currentOffset, targetOffset).apply {
-            duration = 300
-            interpolator = DecelerateInterpolator()
+            this.duration = duration.toLong()
+            interpolator = DecelerateInterpolator(1.5f) // 调整插值器，让动画更流畅
             addUpdateListener { animator ->
                 val animatedValue = animator.animatedValue as Int
                 setContentViewTranslation(animatedValue)
@@ -199,9 +312,9 @@ class SmartRefreshContainer @JvmOverloads constructor(
                 override fun onAnimationEnd(animation: android.animation.Animator) {
                     currentOffset = targetOffset
                     when (currentFinalState) {
-                        RefreshState.STATE_REFRESH_FINISH, RefreshState.STATE_LOAD_FINISH -> setState(
-                            RefreshState.STATE_IDLE
-                        )
+                        RefreshState.STATE_REFRESH_FINISH, RefreshState.STATE_LOAD_FINISH -> {
+                            setState(RefreshState.STATE_IDLE)
+                        }
                     }
                 }
 
@@ -220,182 +333,19 @@ class SmartRefreshContainer @JvmOverloads constructor(
     private fun setContentViewTranslation(offset: Int) {
         currentOffset = offset
         recyclerView?.translationY = offset.toFloat()
-        refreshHeader?.getView()?.translationY =
-            offset - (refreshHeader?.getView()?.measuredHeight?.toFloat() ?: 0f)
-        loadMoreFooter?.getView()?.translationY =
-            offset + (loadMoreFooter?.getView()?.measuredHeight?.toFloat() ?: 0f)
 
-        if (offset > 0 && currentState !in setOf(
-                RefreshState.STATE_REFRESHING,
-                RefreshState.STATE_REFRESH_FINISH
-            )
-        ) {
-            refreshHeader?.onPulling(
-                min(1f, offset.toFloat() / refreshTriggerOffset),
-                offset,
-                refreshTriggerOffset,
-                currentState
-            )
-        } else if (offset < 0 && currentState !in setOf(
-                RefreshState.STATE_LOADING,
-                RefreshState.STATE_LOAD_FINISH
-            )
-        ) {
-            loadMoreFooter?.onPulling(
-                min(1f, abs(offset).toFloat() / loadMoreTriggerOffset),
-                offset,
-                loadMoreTriggerOffset,
-                currentState
-            )
+        // 修复 Header 和 Footer 的位置计算
+        refreshHeader?.getView()?.let { headerView ->
+            headerView.translationY = (offset - headerView.height).toFloat()
         }
-    }
-
-    // --- NestedScrollingParent2 Impl ---
-
-    override fun onStartNestedScroll(
-        child: View, target: View, axes: Int, type: Int,
-    ): Boolean {
-        val canStart = (axes and RecyclerView.SCROLL_AXIS_VERTICAL) != 0 &&
-                (currentState == RefreshState.STATE_IDLE ||
-                        currentState == RefreshState.STATE_PULL_DOWN_TO_REFRESH ||
-                        currentState == RefreshState.STATE_RELEASE_TO_REFRESH ||
-                        currentState == RefreshState.STATE_PULL_UP_TO_LOAD ||
-                        currentState == RefreshState.STATE_RELEASE_TO_LOAD)
-
-        return canStart
-    }
-
-    override fun onNestedScrollAccepted(child: View, target: View, axes: Int, type: Int) {
-        nestedScrollingParentHelper.onNestedScrollAccepted(child, target, axes, type)
-        scrollAnimator?.cancel()
-    }
-
-
-    override fun onNestedPreScroll(
-        target: View, dx: Int, dy: Int, consumed: IntArray, type: Int,
-    ) {
-        if (currentOffset != 0) {
-            val willScroll = currentOffset + dy
-            if ((currentOffset > 0 && willScroll < 0) || (currentOffset < 0 && willScroll > 0)) {
-                consumed[1] = -currentOffset
-                setContentViewTranslation(0)
-            } else {
-                val maxAllowedOffset =
-                    if (currentOffset > 0) maxPullDownOffset else -maxPullUpOffset
-                val newOffset = min(maxPullDownOffset, max(-maxPullUpOffset, currentOffset + dy))
-                consumed[1] = dy
-                setContentViewTranslation(newOffset)
-            }
-            return
+        loadMoreFooter?.getView()?.let { footerView ->
+            footerView.translationY = (offset + footerView.height).toFloat()
         }
 
-        val canScrollDown = target.canScrollVertically(-1)
-        val canScrollUp = target.canScrollVertically(1)
-
-        if (dy > 0 && !canScrollUp) {
-            if (currentState == RefreshState.STATE_IDLE || currentState == RefreshState.STATE_PULL_UP_TO_LOAD || currentState == RefreshState.STATE_RELEASE_TO_LOAD) {
-                val newOffset = min(0, max(currentOffset - dy, -maxPullUpOffset))
-                consumed[1] = dy
-                setContentViewTranslation(newOffset)
-                if (abs(newOffset) >= loadMoreTriggerOffset) {
-                    setState(RefreshState.STATE_RELEASE_TO_LOAD)
-                } else {
-                    setState(RefreshState.STATE_PULL_UP_TO_LOAD)
-                }
-            }
+        // 添加调试信息
+        if (BuildConfig.DEBUG) {
+            logDebug("Translation: offset=$offset, state=$currentState")
         }
-        else if (dy < 0 && !canScrollDown) {
-            if (currentState == RefreshState.STATE_IDLE || currentState == RefreshState.STATE_PULL_DOWN_TO_REFRESH || currentState == RefreshState.STATE_RELEASE_TO_REFRESH) {
-                val newOffset = max(0, min(currentOffset - dy, maxPullDownOffset))
-                consumed[1] = dy
-                setContentViewTranslation(newOffset)
-                if (newOffset >= refreshTriggerOffset) {
-                    setState(RefreshState.STATE_RELEASE_TO_REFRESH)
-                } else {
-                    setState(RefreshState.STATE_PULL_DOWN_TO_REFRESH)
-                }
-            }
-        }
-    }
-
-    override fun onNestedScroll(
-        target: View,
-        dxConsumed: Int,
-        dyConsumed: Int,
-        dxUnconsumed: Int,
-        dyUnconsumed: Int,
-        type: Int,
-    ) {
-        if (dyUnconsumed != 0) {
-            val newOffset = currentOffset - dyUnconsumed
-            val boundedOffset = when {
-                newOffset > maxPullDownOffset -> maxPullDownOffset
-                newOffset < -maxPullUpOffset -> -maxPullUpOffset
-                else -> newOffset
-            }
-            setContentViewTranslation(boundedOffset)
-
-            if (currentOffset > 0) {
-                if (currentOffset >= refreshTriggerOffset && currentState == RefreshState.STATE_PULL_DOWN_TO_REFRESH) {
-                    setState(RefreshState.STATE_RELEASE_TO_REFRESH)
-                } else if (currentOffset < refreshTriggerOffset && currentState == RefreshState.STATE_RELEASE_TO_REFRESH) {
-                    setState(RefreshState.STATE_PULL_DOWN_TO_REFRESH)
-                }
-            } else if (currentOffset < 0) {
-                if (abs(currentOffset) >= loadMoreTriggerOffset && currentState == RefreshState.STATE_PULL_UP_TO_LOAD) {
-                    setState(RefreshState.STATE_RELEASE_TO_LOAD)
-                } else if (abs(currentOffset) < loadMoreTriggerOffset && currentState == RefreshState.STATE_RELEASE_TO_LOAD) {
-                    setState(RefreshState.STATE_PULL_UP_TO_LOAD)
-                }
-            }
-        }
-    }
-
-    override fun onStopNestedScroll(target: View, type: Int) {
-        nestedScrollingParentHelper.onStopNestedScroll(target, type)
-
-        scrollAnimator?.cancel()
-
-        when (currentState) {
-            RefreshState.STATE_PULL_DOWN_TO_REFRESH -> {
-                animateToOffset(0)
-            }
-
-            RefreshState.STATE_RELEASE_TO_REFRESH -> {
-                setState(RefreshState.STATE_REFRESHING)
-                refreshHeader?.onRefreshing()
-                animateToOffset(refreshTriggerOffset)
-                onRefreshListener?.invoke()
-            }
-
-            RefreshState.STATE_PULL_UP_TO_LOAD -> {
-                animateToOffset(0)
-            }
-
-            RefreshState.STATE_RELEASE_TO_LOAD -> {
-                setState(RefreshState.STATE_LOADING)
-                loadMoreFooter?.onLoading()
-                animateToOffset(-loadMoreTriggerOffset)
-                onLoadMoreListener?.invoke()
-            }
-        }
-    }
-
-    override fun onNestedPreFling(target: View, velocityX: Float, velocityY: Float): Boolean {
-        if (currentOffset != 0) {
-            return true
-        }
-        return currentState == RefreshState.STATE_REFRESHING || currentState == RefreshState.STATE_LOADING
-    }
-
-    override fun onNestedFling(
-        target: View, velocityX: Float, velocityY: Float, consumed: Boolean,
-    ): Boolean {
-        return false
-    }
-
-    override fun getNestedScrollAxes(): Int {
-        return nestedScrollingParentHelper.nestedScrollAxes
     }
 
     private fun dp2px(dp: Int): Int {
@@ -407,6 +357,259 @@ class SmartRefreshContainer @JvmOverloads constructor(
             Log.d(TAG, message)
         }
     }
+
+    override fun onInterceptTouchEvent(ev: MotionEvent?): Boolean {
+        ev?.let { event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    lastTouchY = event.y
+                    initialTouchY = event.y
+                    isDragging = false
+                    scrollAnimator?.cancel()
+                }
+
+                MotionEvent.ACTION_MOVE -> {
+                    val deltaY = event.y - lastTouchY
+
+                    // 检查是否可以滚动
+                    val canScrollUp = recyclerView?.canScrollVertically(1) ?: false
+                    val canScrollDown = recyclerView?.canScrollVertically(-1) ?: false
+
+                    // 判断是否需要拦截触摸事件
+                    if (abs(deltaY) > touchSlop) {
+                        // 下拉刷新：向下滑动且不能继续向下滚动
+                        if (deltaY > 0 && !canScrollDown) {
+                            isDragging = true
+                            return true
+                        }
+                        // 上拉加载：向上滑动且不能继续向上滚动
+                        if (deltaY < 0 && !canScrollUp) {
+                            isDragging = true
+                            return true
+                        }
+                    }
+                }
+            }
+        }
+        return super.onInterceptTouchEvent(ev)
+    }
+
+    override fun onTouchEvent(event: MotionEvent?): Boolean {
+        event?.let { ev ->
+            when (ev.action) {
+                MotionEvent.ACTION_MOVE -> {
+                    if (isDragging) {
+                        val deltaY = ev.y - lastTouchY
+                        handleTouchScroll(deltaY)
+                        lastTouchY = ev.y
+                        return true
+                    }
+                }
+
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (isDragging) {
+                        handleTouchEnd()
+                        isDragging = false
+                        return true
+                    }
+                }
+            }
+        }
+        return super.onTouchEvent(event)
+    }
+
+    private fun handleTouchScroll(deltaY: Float) {
+        // 修复方向计算：下拉时 deltaY > 0，应该增加 offset
+        val newOffset = currentOffset + deltaY.toInt()
+
+        // 添加阻尼效果
+        val dampedOffset = applyDamping(newOffset)
+
+        logDebug("Touch scroll: deltaY=$deltaY, currentOffset=$currentOffset, newOffset=$newOffset, dampedOffset=$dampedOffset")
+
+        setContentViewTranslation(dampedOffset)
+
+        // 更新状态
+        updateState(dampedOffset)
+    }
+
+    /**
+     * 应用阻尼效果
+     * 当偏移量超过触发阈值时，减少移动速度，创造阻尼感
+     */
+    private fun applyDamping(offset: Int): Int {
+        return when {
+            offset > 0 -> {
+                // 下拉刷新阻尼
+                if (offset > refreshTriggerOffset) {
+                    val overOffset = offset - refreshTriggerOffset
+                    // 使用非线性阻尼，让阻尼效果更自然
+                    val dampedOverOffset =
+                        (overOffset * calculateDampingFactor(overOffset.toFloat())).toInt()
+                    val finalOffset = refreshTriggerOffset + dampedOverOffset
+                    // 限制最大偏移量
+                    min(finalOffset, maxPullDownOffset)
+                } else {
+                    offset
+                }
+            }
+
+            offset < 0 -> {
+                // 上拉加载阻尼
+                if (abs(offset) > loadMoreTriggerOffset) {
+                    val overOffset = abs(offset) - loadMoreTriggerOffset
+                    // 使用非线性阻尼，让阻尼效果更自然
+                    val dampedOverOffset =
+                        (overOffset * calculateDampingFactor(overOffset.toFloat())).toInt()
+                    val finalOffset = -(loadMoreTriggerOffset + dampedOverOffset)
+                    // 限制最大偏移量
+                    max(finalOffset, -maxPullUpOffset)
+                } else {
+                    offset
+                }
+            }
+
+            else -> offset
+        }
+    }
+
+    /**
+     * 计算非线性阻尼系数
+     * 偏移量越大，阻尼越强
+     */
+    private fun calculateDampingFactor(overOffset: Float): Float {
+        val normalizedOffset = overOffset / 50f // 降低归一化分母，让阻尼更早生效
+        val damping = dampingFactor * (1f - normalizedOffset * 0.8f) // 增加阻尼强度
+        return damping.coerceAtLeast(0.05f) // 降低最小阻尼系数
+    }
+
+    private fun updateState(offset: Int) {
+        val newState = when {
+            offset > 0 -> {
+                if (offset >= refreshTriggerOffset) RefreshState.STATE_RELEASE_TO_REFRESH
+                else RefreshState.STATE_PULL_DOWN_TO_REFRESH
+            }
+
+            offset < 0 -> {
+                if (abs(offset) >= loadMoreTriggerOffset) RefreshState.STATE_RELEASE_TO_LOAD
+                else RefreshState.STATE_PULL_UP_TO_LOAD
+            }
+
+            else -> RefreshState.STATE_IDLE
+        }
+
+        logDebug("Update state: offset=$offset, currentState=$currentState, newState=$newState")
+
+        if (newState != currentState) {
+            setState(newState)
+        }
+
+        // 即使状态没变，也要更新 Header/Footer 的 pulling 状态
+        updatePullingState(offset)
+    }
+
+    /**
+     * 更新 pulling 状态，让视觉反馈更细腻
+     */
+    private fun updatePullingState(offset: Int) {
+        when {
+            offset > 0 && refreshHeader != null -> {
+                val percent = min(1f, offset.toFloat() / refreshTriggerOffset)
+                refreshHeader?.onPulling(percent, offset, refreshTriggerOffset, currentState)
+            }
+
+            offset < 0 && loadMoreFooter != null -> {
+                val percent = min(1f, abs(offset).toFloat() / loadMoreTriggerOffset)
+                loadMoreFooter?.onPulling(percent, offset, loadMoreTriggerOffset, currentState)
+            }
+        }
+    }
+
+    private fun handleTouchEnd() {
+        logDebug("Touch end: currentState=$currentState, currentOffset=$currentOffset")
+
+        when (currentState) {
+            RefreshState.STATE_PULL_DOWN_TO_REFRESH -> {
+                logDebug("Pulling down, animate to 0")
+                animateToOffset(0)
+            }
+
+            RefreshState.STATE_RELEASE_TO_REFRESH -> {
+                logDebug("Release to refresh, start refreshing")
+                setState(RefreshState.STATE_REFRESHING)
+                refreshHeader?.onRefreshing()
+                animateToOffset(refreshTriggerOffset)
+                onRefreshListener?.invoke()
+            }
+
+            RefreshState.STATE_PULL_UP_TO_LOAD -> {
+                logDebug("Pulling up, animate to 0")
+                animateToOffset(0)
+            }
+
+            RefreshState.STATE_RELEASE_TO_LOAD -> {
+                logDebug("Release to load, start loading")
+                setState(RefreshState.STATE_LOADING)
+                loadMoreFooter?.onLoading()
+                animateToOffset(-loadMoreTriggerOffset)
+                onLoadMoreListener?.invoke()
+            }
+        }
+    }
+
+    /**
+     * 配置阻尼效果
+     * @param factor 阻尼系数，范围0.1-1.0，越小阻尼越强
+     */
+    fun setDampingFactor(factor: Float) {
+        dampingFactor = factor.coerceIn(0.1f, 1.0f)
+    }
+
+    /**
+     * 配置触发偏移量
+     * @param refreshOffset 下拉刷新触发偏移量
+     * @param loadMoreOffset 上拉加载触发偏移量
+     */
+    fun setTriggerOffsets(refreshOffset: Int, loadMoreOffset: Int) {
+        refreshTriggerOffset = refreshOffset
+        loadMoreTriggerOffset = loadMoreOffset
+    }
+
+    /**
+     * 配置最大偏移量
+     * @param maxPullDown 最大下拉偏移量
+     * @param maxPullUp 最大上拉偏移量
+     */
+    fun setMaxOffsets(maxPullDown: Int, maxPullUp: Int) {
+        maxPullDownOffset = maxPullDown
+        maxPullUpOffset = maxPullUp
+    }
+
+    /**
+     * 配置动画时间
+     * @param defaultDuration 默认动画时间（毫秒）
+     * @param refreshDuration 刷新动画时间（毫秒）
+     * @param loadMoreDuration 加载更多动画时间（毫秒）
+     */
+    fun setAnimationDurations(
+        defaultDuration: Long,
+        refreshDuration: Long,
+        loadMoreDuration: Long
+    ) {
+        animationDuration = defaultDuration.toInt()
+        refreshAnimationDuration = refreshDuration.toInt()
+        loadMoreAnimationDuration = loadMoreDuration.toInt()
+    }
+
+    /**
+     * 快速配置动画时间（简化版）
+     * @param duration 统一的动画时间（毫秒）
+     */
+    fun setAnimationDuration(duration: Long) {
+        animationDuration = duration.toInt()
+        refreshAnimationDuration = duration.toInt()
+        loadMoreAnimationDuration = duration.toInt()
+    }
 }
 
 
@@ -416,6 +619,42 @@ fun SmartRefreshContainer.onRefresh(action: () -> Unit) {
 
 fun SmartRefreshContainer.onLoadMore(action: () -> Unit) {
     this.setOnLoadMoreListener(action)
+}
+
+/**
+ * DSL-style extension function to configure SmartRefreshContainer with adapter and layout manager.
+ *
+ * @param T The type of the data model.
+ * @param adapter The SmartAdapter instance.
+ * @param layoutManager The LayoutManager to use (defaults to LinearLayoutManager).
+ * @param block Lambda to configure the container.
+ * @return The SmartRefreshContainer instance for method chaining.
+ */
+inline fun <T : Any> SmartRefreshContainer.configure(
+    adapter: SmartAdapter<T>,
+    layoutManager: RecyclerView.LayoutManager = LinearLayoutManager(context),
+    crossinline block: SmartRefreshContainer.() -> Unit = {}
+): SmartRefreshContainer {
+    this.setLayoutManager(layoutManager)
+    this.setAdapter(adapter)
+    this.block()
+    return this
+}
+
+/**
+ * DSL-style extension function to set up refresh and load more listeners.
+ *
+ * @param onRefresh Lambda to handle refresh action.
+ * @param onLoadMore Lambda to handle load more action.
+ * @return The SmartRefreshContainer instance for method chaining.
+ */
+fun SmartRefreshContainer.setupListeners(
+    onRefresh: () -> Unit = {},
+    onLoadMore: () -> Unit = {}
+): SmartRefreshContainer {
+    this.setOnRefreshListener(onRefresh)
+    this.setOnLoadMoreListener(onLoadMore)
+    return this
 }
 
 fun Int.dpToPx(context: Context): Int {

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <item name="status_bar_view" type="id" />
+    <item name="navigation_bar_view" type="id" />
+    <item name="navigation_height_live_data" type="id" />
+
+    <item name="dialog_outside_click_root_id" type="id" />
+
+    <item name="tag_item_coordinate" type="id" />
+    <item name="tag_item_old_coordinate" type="id"/>
+
+
+</resources>

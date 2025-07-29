@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <declare-styleable name="HomeTabBottomViewStyle">
+        <attr name="textSize" format="dimension" />
+        <attr name="textColorNormal" format="color" />
+        <attr name="textColorSelected" format="color" />
+        <attr name="imageTextPadding" format="dimension" />
+    </declare-styleable>
+
+
+    <declare-styleable name="RatioFrameLayout">
+        <attr name="ratioMode" format="enum">
+            <enum name="width" value="0" />
+            <enum name="height" value="1" />
+        </attr>
+        <attr name="ratio" format="float" />
+    </declare-styleable>
+</resources>

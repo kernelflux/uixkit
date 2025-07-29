@@ -42,3 +42,24 @@ interface ItemDelegate<T : Any, VB : ViewBinding> {
      */
     fun onBindViewHolder(binding: VB, item: T, position: Int, payloads: List<Any>)
 }
+
+/**
+ * DSL-style function to create an ItemDelegate with automatic ViewBinding handling.
+ * This eliminates the need to manually implement onCreateViewBinding.
+ *
+ * @param T The type of the data model.
+ * @param VB The type of the ViewBinding.
+ * @param isForViewType Lambda to determine if this delegate handles the item.
+ * @param onBind Lambda to bind data to the view.
+ * @return An ItemDelegate instance that automatically handles ViewBinding creation.
+ */
+inline fun <T : Any, reified VB : ViewBinding> createItemDelegate(
+    noinline isForViewType: (item: T, position: Int) -> Boolean,
+    noinline onBind: (binding: VB, item: T, position: Int, payloads: List<Any>) -> Unit
+): ItemDelegate<T, VB> {
+    return object : AutoBindingDelegate<T, VB>() {
+        override fun isForViewType(item: T, position: Int): Boolean = isForViewType(item, position)
+        override fun onBindViewHolder(binding: VB, item: T, position: Int, payloads: List<Any>) = onBind(binding, item, position, payloads)
+    }
+}
+

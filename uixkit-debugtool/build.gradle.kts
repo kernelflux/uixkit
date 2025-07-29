@@ -5,13 +5,9 @@ plugins {
 }
 
 android {
-    namespace = "com.kernelflux.uixkit.adapter"
+    namespace = "com.kernelflux.uixkit.debugtool"
 }
 
 dependencies {
     api(project(":uixkit-core"))
-    api("com.squareup.retrofit2:retrofit:3.0.0")
-    api("com.google.code.gson:gson:2.13.1")
 }
-
-extra["uixkit.version"] = "0.0.2"

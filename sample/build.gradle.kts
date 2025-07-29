@@ -13,6 +13,9 @@ dependencies {
     implementation(libs.androidx.constraintlayout)
 
 
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+
+    debugImplementation(project(":uixkit-debugtool"))
     debugImplementation(project(":uixkit-adapter"))
     debugImplementation(project(":uixkit-core"))
     debugImplementation(project(":uixkit-ui"))

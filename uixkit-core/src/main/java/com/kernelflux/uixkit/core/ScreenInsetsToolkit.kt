@@ -16,10 +16,7 @@ import androidx.lifecycle.*
 import java.lang.ref.WeakReference
 
 
-/**
- * @author: QT
- * @date: 2025/5/12
- */
+
 interface WindowInsetsProvider {
     fun getRealSize(): Point
     fun getUsableSize(): Point

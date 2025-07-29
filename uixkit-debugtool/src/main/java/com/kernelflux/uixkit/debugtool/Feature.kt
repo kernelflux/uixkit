@@ -5,10 +5,7 @@ import android.content.Intent
 import android.widget.Toast
 import com.kernelflux.uixkit.core.BaseActivity
 
-/**
- * @author: QT
- * @date: 2025/5/11
- */
+
 object Feature {
 
     fun activity(

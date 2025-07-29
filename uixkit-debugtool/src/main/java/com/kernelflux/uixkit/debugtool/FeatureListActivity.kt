@@ -8,10 +8,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.kernelflux.uixkit.core.BaseActivity
 
-/**
- * @author: QT
- * @date: 2025/5/11
- */
 abstract class FeatureListActivity : BaseActivity() {
 
     open fun isAddItemDecoration(): Boolean = false

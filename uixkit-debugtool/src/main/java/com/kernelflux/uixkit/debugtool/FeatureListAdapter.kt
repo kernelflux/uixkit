@@ -13,10 +13,6 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import androidx.core.graphics.toColorInt
 
-/**
- * @author: QT
- * @date: 2025/5/11
- */
 class FeatureListAdapter(
     private val featureList: List<FeatureEntry>
 ) : RecyclerView.Adapter<FeatureListAdapter.VH>() {
